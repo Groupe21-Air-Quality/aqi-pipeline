@@ -1,0 +1,73 @@
+# Airflow en local, orchestrateur du pipeline AQI.
+# Démarrage : docker compose up -d airflow-init  (une seule fois)
+#             docker compose up -d
+# Interface : http://localhost:8080  (login: admin / admin, cf .env)
+
+x-airflow-common: &airflow-common
+  build: .
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow-meta/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'false'
+    # Secrets/config injectés dans les tâches (jamais en dur dans le code) :
+    OWM_API_KEY: ${OWM_API_KEY}
+    DATABASE_URL: ${DATABASE_URL}
+    GIT_REPO_URL: ${GIT_REPO_URL}
+    GIT_USER_NAME: ${GIT_USER_NAME}
+    GIT_USER_EMAIL: ${GIT_USER_EMAIL}
+  volumes:
+    - .:/opt/airflow/repo                 # tout le repo (code + data + .git) pour pouvoir push
+    - ./dags:/opt/airflow/dags
+    - airflow-logs:/opt/airflow/logs
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    postgres-airflow-meta:
+      condition: service_healthy
+
+services:
+  # Base PostgreSQL interne à Airflow (métadonnées des DAGs/runs). 
+  # ATTENTION : ce n'est PAS le data warehouse du projet (celui-ci reste distant,
+  # cf DATABASE_URL) — on ne mélange jamais les deux bases.
+  postgres-airflow-meta:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-airflow-meta-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    restart: always
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin --password admin \
+          --firstname Admin --lastname User \
+          --role Admin --email admin@example.com || true
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    restart: always
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+
+volumes:
+  postgres-airflow-meta-volume:
+  airflow-logs:
