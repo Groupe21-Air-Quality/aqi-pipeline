@@ -56,4 +56,5 @@ jobs:
 
       - name: Push changes
         run: |
-          git push origin HEAD:main
+              git pull --rebase origin preprod
+              git push origin HEAD:preprod
