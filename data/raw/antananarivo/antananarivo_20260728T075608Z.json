@@ -1,0 +1,32 @@
+{
+  "city": "Antananarivo",
+  "country": "Madagascar",
+  "lat": -18.8792,
+  "lon": 47.5079,
+  "collected_at_utc": "20260728T075608Z",
+  "source": "openweathermap_air_pollution_current",
+  "raw_response": {
+    "coord": {
+      "lon": 47.5079,
+      "lat": -18.8792
+    },
+    "list": [
+      {
+        "main": {
+          "aqi": 2
+        },
+        "components": {
+          "co": 162.99,
+          "no": 0.03,
+          "no2": 0.16,
+          "o3": 60.62,
+          "so2": 0.43,
+          "pm2_5": 7.74,
+          "pm10": 10.88,
+          "nh3": 1.17
+        },
+        "dt": 1785224798
+      }
+    ]
+  }
+}
