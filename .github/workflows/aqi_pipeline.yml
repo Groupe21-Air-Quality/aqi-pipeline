@@ -32,7 +32,7 @@ jobs:
           OPENWEATHER_API_KEY: ${{ secrets.OWM_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          python src/collect_data.py
+          python src/collect.py
 
       - name: Build clean dataset
         env:
