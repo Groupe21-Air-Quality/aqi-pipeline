@@ -1,0 +1,59 @@
+name: AQI Pipeline
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # Toutes les heures (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Collect AQI data
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OWM_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python src/collect_data.py
+
+      - name: Build clean dataset
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python src/build_clean.py
+
+      - name: Commit changes
+        run: |
+          git config user.name "${{ secrets.GIT_USER_NAME }}"
+          git config user.email "${{ secrets.GIT_USER_EMAIL }}"
+
+          git add data/raw data/clean
+
+          if git diff --cached --quiet; then
+            echo "Aucun changement à committer."
+            exit 0
+          fi
+
+          git commit -m "chore(data): GitHub Actions $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+      - name: Push changes
+        run: |
+          git push origin HEAD:main
