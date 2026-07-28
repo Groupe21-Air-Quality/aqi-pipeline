@@ -57,15 +57,13 @@ with DAG(
         bash_command=f"""
         set -e
        cd {REPO_DIR}
-       git config --global --add safe.directory {REPO_DIR}
-       git config user.name "$GIT_USER_NAME"
-       git config user.email "$GIT_USER_EMAIL"
-       git remote set-url origin "$GIT_REPO_URL"
-       git add data/raw data/clean
-       git diff --staged --quiet || git commit -m "chore(data): run automatique airflow $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-       git fetch origin main
-       git rebase origin/main
-       git push origin HEAD:main
+        git config --global --add safe.directory {REPO_DIR}
+        git config user.name "$GIT_USER_NAME"
+        git config user.email "$GIT_USER_EMAIL"
+        git remote set-url origin "$GIT_REPO_URL"
+        git add data/raw data/clean
+        git diff --staged --quiet || git commit -m "chore(data): run automatique airflow $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+        git push origin HEAD:main
         """,
     )
 
