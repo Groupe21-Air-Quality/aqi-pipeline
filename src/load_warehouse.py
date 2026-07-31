@@ -1,17 +1,3 @@
-"""
-Charge data/clean/air_quality_clean.csv dans le data warehouse PostgreSQL
-(schéma en étoile : dim_city, dim_time, fact_air_quality).
-
-Rejouable : le script est idempotent. À chaque exécution :
-  1. crée les tables si elles n'existent pas (schema.sql)
-  2. vide entièrement les 3 tables (TRUNCATE ... RESTART IDENTITY CASCADE)
-  3. recharge tout depuis clean/ (source de vérité)
-Cette approche "reconstruire à chaque run" évite toute dérive entre clean/ et
-le warehouse.
-
-Variable d'environnement requise : DATABASE_URL
-  ex: postgresql://user:password@host:5432/dbname
-"""
 import os
 from pathlib import Path
 
@@ -58,13 +44,10 @@ def main() -> None:
     conn.autocommit = False
     try:
         with conn.cursor() as cur:
-            # 1. Création du schéma si besoin
             cur.execute(SCHEMA_FILE.read_text(encoding="utf-8"))
 
-            # 2. Reset complet (warehouse reconstruit à chaque run, comme clean/)
             cur.execute("TRUNCATE TABLE fact_air_quality, dim_city, dim_time RESTART IDENTITY CASCADE;")
 
-            # 3. dim_city
             cities = df[["city", "country", "latitude", "longitude"]].drop_duplicates()
             execute_values(
                 cur,
@@ -75,7 +58,6 @@ def main() -> None:
             cur.execute("SELECT city_id, city_name, country FROM dim_city;")
             city_map = {(name, country): cid for cid, name, country in cur.fetchall()}
 
-            # 4. dim_time
             time_dim = build_time_dim(df["timestamp_utc"])
             time_rows = time_dim[[
                 "time_id", "full_datetime", "date", "hour", "day", "month", "year",
@@ -89,7 +71,6 @@ def main() -> None:
                 time_rows,
             )
 
-            # 5. fact_air_quality
             df["_ts"] = pd.to_datetime(df["timestamp_utc"], utc=True)
             df["_time_id"] = df["_ts"].dt.strftime("%Y%m%d%H").astype("int64")
             df["_city_id"] = df.apply(lambda r: city_map[(r["city"], r["country"])], axis=1)

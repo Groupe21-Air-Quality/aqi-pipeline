@@ -1,15 +1,3 @@
-"""
-Reconstruit ENTIÈREMENT data/clean/air_quality_clean.csv à partir de tous les
-fichiers présents dans data/raw/ (collecte horaire + backfill confondus).
-
-Ce script ne modifie jamais raw/, ne lit jamais de fichier .csv existant :
-clean/ est 100% dérivé de raw/, ce qui garantit qu'on peut le reconstruire
-à l'identique à tout moment (même après suppression accidentelle de clean/).
-
-Dédoublonnage : clé (city, timestamp_utc) unique, on garde la dernière valeur
-observée en cas de doublon (un même horodatage peut être présent dans un fichier
-de backfill ET un fichier de collecte horaire).
-"""
 import json
 import datetime
 from pathlib import Path
@@ -73,10 +61,9 @@ def build_clean() -> pd.DataFrame:
 
     df = pd.DataFrame(all_rows, columns=COLUMNS)
 
-    # Dédoublonnage : une seule ligne par (ville, heure)
+    
     df = df.drop_duplicates(subset=["city", "timestamp_utc"], keep="last")
 
-    # Tri chronologique, par ville puis horodatage
     df = df.sort_values(["city", "timestamp_utc"]).reset_index(drop=True)
 
     CLEAN_DIR.mkdir(parents=True, exist_ok=True)

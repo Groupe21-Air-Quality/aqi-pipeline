@@ -1,16 +1,3 @@
-"""
-Backfill historique : récupère jusqu'à N jours d'historique AQI pour chaque ville
-via l'API OpenWeatherMap Air Pollution History, découpée en tranches de 30 jours
-(limite pratique pour rester sur des payloads raisonnables).
-
-Rejouable : si un fichier de tranche existe déjà, il n'est pas re-téléchargé
-(idempotence), ce qui permet de relancer le script après une coupure sans dupliquer
-les appels API.
-
-Usage :
-    python src/backfill.py --days 90    # 3 mois (minimum demandé)
-    python src/backfill.py --days 365   # 12 mois (idéal)
-"""
 import os
 import json
 import time

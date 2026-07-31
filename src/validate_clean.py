@@ -1,14 +1,3 @@
-"""
-Valide que data/clean/air_quality_clean.csv respecte le contrat de données :
-- colonnes attendues présentes
-- au moins 5 villes
-- pas de doublon (city, timestamp_utc)
-- tri chronologique par ville
-- AQI dans l'intervalle attendu (échelle OpenWeatherMap : 1 à 5)
-- pas de coordonnées manquantes
-
-Sort avec un code de retour != 0 si une règle est violée (utilisable en CI).
-"""
 import sys
 from pathlib import Path
 

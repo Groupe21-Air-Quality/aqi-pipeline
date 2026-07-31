@@ -1,8 +1,3 @@
-"""
-Configuration centrale du pipeline : liste des villes suivies.
-Ajouter/retirer une ville ici suffit à propager le changement à tout le pipeline
-(collecte, backfill, clean, warehouse).
-"""
 
 CITIES = [
     {"name": "Paris",        "country": "France",    "lat": 48.8566,  "lon": 2.3522,   "slug": "paris"},

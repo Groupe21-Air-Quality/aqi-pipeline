@@ -1,11 +1,3 @@
-"""
-Collecte horaire des données AQI courantes pour chaque ville.
-Un fichier JSON brut est écrit par ville et par appel, sous data/raw/<slug>/.
-Les fichiers de la zone raw/ ne sont JAMAIS modifiés après écriture (c'est notre
-sauvegarde) : clean/ est entièrement reconstruit à partir de ces fichiers.
-
-Variable d'environnement requise : OWM_API_KEY (clé OpenWeatherMap, jamais en dur).
-"""
 import os
 import json
 import datetime
@@ -54,7 +46,7 @@ def collect_current() -> int:
         city_dir.mkdir(parents=True, exist_ok=True)
         out_path = city_dir / f"{city['slug']}_{run_ts}.json"
 
-        # Sécurité : on n'écrase jamais un fichier existant (immutabilité de raw/)
+        
         if out_path.exists():
             print(f"[SKIP] {out_path} existe déjà")
             continue
