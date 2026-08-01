@@ -9,7 +9,7 @@
 
 | Membre | Tâche principale |
 |---|---|
-| FENOMANANJARA Harena Sarobidy | Script de collecte API + config des villes + Airflow(aux debut) + Aide Pipeline Github Action + tests, vidéo de démo|
+| FENOMANANJARA Harena Sarobidy | Script de collecte API + config des villes + Airflow(aux debut) + Aide Pipeline Github Action + tests, vidéo de démo + NoteBook (juste un exemple que lui a cree pas pour le groupe)|
 | RABEMANANJARA Nomenjanahary Yves | Script de reconstruction clean/ + validation + Pipeline Github Action + Base de donne Neon|
 | CHARAFFAÏNE Issa Ben Saïd | Redaction du Rapport.md |
 | RANDRIAMIZAKANOMENTSOA Princy | Redaction du README.md |
