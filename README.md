@@ -16,26 +16,10 @@ Le pipeline suit plusieurs étapes :
 4. Génération d'un fichier propre unique ;
 5. Chargement dans un Data Warehouse PostgreSQL pour l'analyse.
 
-Les détails concernant les choix d'architecture et les décisions techniques
-sont disponibles dans :
+Les détails concernant la stack technique, la structure du projet et les
+décisions d'architecture sont disponibles dans :
 
 [`ARCHITECTURE.md`](ARCHITECTURE.md)
-
----
-
-# Stack technique
-
-| Composant | Technologie |
-|---|---|
-| Source de données | OpenWeatherMap Air Pollution API |
-| Langage | Python |
-| Stockage brut | JSON (`data/raw`) |
-| Données nettoyées | CSV (`data/clean`) |
-| Data Warehouse | PostgreSQL |
-| Hébergement BDD | Neon |
-| Modélisation | Schéma en étoile |
-| Automatisation | GitHub Actions |
-| Alternative d'orchestration | Airflow / Docker |
 
 ---
 
@@ -55,71 +39,12 @@ Ces villes permettent d'obtenir des situations variées de qualité de l'air.
 
 ---
 
-# Structure du projet
-
-```text
-.
-├── src/
-│   ├── collect.py              # collecte depuis OpenWeatherMap
-│   ├── build_clean.py          # nettoyage et génération du CSV clean
-│   ├── validate_clean.py       # validation des données
-│   └── load_warehouse.py       # chargement PostgreSQL
-│
-├── data/
-│   ├── raw/                    # données brutes API
-│   └── clean/
-│       └── air_quality_clean.csv
-│
-├── dags/                       # DAGs Airflow
-│
-├── .github/
-│   └── workflows/              # workflows GitHub Actions
-│
-├── src/schema.sql              # création du Data Warehouse
-├── ARCHITECTURE.md             # documentation architecture
-└── README.md
-```
-
----
-
-# Données nettoyées
-
-Le fichier principal utilisé pour l'analyse est :
-
-```
-data/clean/air_quality_clean.csv
-```
-
-Chaque ligne correspond à une mesure :
-
-```
-1 ville + 1 heure
-```
-
-Les données sont triées chronologiquement et dédoublonnées selon :
-
-```
-(city, timestamp_utc)
-```
-
-## Exemple d'une ligne
-
-```text
-city=Paris
-country=France
-latitude=48.8566
-longitude=2.3522
-timestamp_utc=2026-04-26T07:00:00Z
-aqi=2
-pm2_5=1.82
-pm10=3.10
-```
-
----
-
 # Contrat de données
 
-Le fichier clean contient les colonnes suivantes :
+Fichier : `data/clean/air_quality_clean.csv`
+
+Une ligne = une ville + une heure, triées chronologiquement, dédoublonnées sur
+`(city, timestamp_utc)`.
 
 | Colonne | Type | Description |
 |---|---|---|
@@ -138,6 +63,13 @@ Le fichier clean contient les colonnes suivantes :
 | pm10 | float | Particules PM10 |
 | nh3 | float | Ammoniac |
 
+Exemple :
+
+```text
+city=Paris, country=France, latitude=48.8566, longitude=2.3522,
+timestamp_utc=2026-04-26T07:00:00Z, aqi=2, pm2_5=1.82, pm10=3.10
+```
+
 L'AQI utilisé correspond à l'échelle OpenWeatherMap :
 
 | Valeur | Signification |
@@ -152,21 +84,11 @@ L'AQI utilisé correspond à l'échelle OpenWeatherMap :
 
 # Data Warehouse
 
-Le projet utilise un modèle dimensionnel en étoile avec PostgreSQL.
-
-Le schéma SQL complet est disponible dans :
-
-```
-src/schema.sql
-```
-
-Le Data Warehouse contient une table de faits et deux dimensions.
-
----
+Le projet utilise un modèle dimensionnel en étoile avec PostgreSQL. Le schéma
+SQL complet est disponible dans `src/schema.sql`. Le Data Warehouse contient
+une table de faits et deux dimensions.
 
 ## dim_city
-
-Table contenant les informations sur les villes.
 
 | Colonne | Description |
 |---|---|
@@ -176,11 +98,7 @@ Table contenant les informations sur les villes.
 | latitude | Latitude |
 | longitude | Longitude |
 
----
-
 ## dim_time
-
-Table contenant les informations temporelles.
 
 | Colonne | Description |
 |---|---|
@@ -195,11 +113,7 @@ Table contenant les informations temporelles.
 | is_weekend | Indique si c'est un weekend |
 | week_of_year | Numéro de semaine |
 
----
-
 ## fact_air_quality
-
-Table contenant les mesures de pollution.
 
 | Colonne | Description |
 |---|---|
@@ -227,19 +141,7 @@ Backfill : 26/04/2026 au 31/07/2026
 Collecte horaire continue depuis le 31/07/2026
 ```
 
-Nombre actuel de lignes :
-
-```
-10 807 lignes
-```
-
-Fichier :
-
-```
-data/clean/air_quality_clean.csv
-```
-
-Répartition :
+Nombre actuel de lignes : **10 807** dans `data/clean/air_quality_clean.csv`.
 
 | Ville | Nombre de lignes |
 |---|---:|
@@ -266,18 +168,11 @@ Derniers jours disponibles :
 
 # Connexion au Data Warehouse
 
-Le Data Warehouse utilise :
-
 - PostgreSQL
 - Hébergement Neon
 
-La connexion est définie avec :
-
-```env
-DATABASE_URL
-```
-
-Cette variable est secrète et ne doit pas être ajoutée au dépôt Git.
+La connexion est définie avec la variable `DATABASE_URL`, secrète et jamais
+ajoutée au dépôt Git.
 
 Exemple de requête :
 
@@ -306,8 +201,6 @@ OWM_API_KEY=votre_cle_openweathermap
 DATABASE_URL=votre_url_postgresql
 ```
 
-Variables utilisées :
-
 | Variable | Description |
 |---|---|
 | OWM_API_KEY | Clé API OpenWeatherMap |
@@ -317,15 +210,8 @@ Variables utilisées :
 
 # Installation locale
 
-Installer les dépendances :
-
 ```bash
 pip install -r requirements.txt
-```
-
-Créer le fichier d'environnement :
-
-```bash
 cp .env.example .env
 ```
 
@@ -333,64 +219,27 @@ cp .env.example .env
 
 # Exécution manuelle
 
-Collecte :
-
 ```bash
-python src/collect.py
-```
-
-Nettoyage :
-
-```bash
-python src/build_clean.py
-```
-
-Validation :
-
-```bash
-python src/validate_clean.py
-```
-
-Chargement du Data Warehouse :
-
-```bash
-python src/load_warehouse.py
+python src/collect.py          # collecte
+python src/build_clean.py      # nettoyage
+python src/validate_clean.py   # validation
+python src/load_warehouse.py   # chargement du Data Warehouse
 ```
 
 ---
 
 # Automatisation
 
-La collecte automatique est réalisée avec GitHub Actions.
+La collecte automatique est réalisée avec GitHub Actions : récupération
+régulière des données, reconstruction du fichier nettoyé, mise à jour des
+données du dépôt.
 
-Le workflow permet :
-
-- la récupération régulière des données ;
-- la reconstruction du fichier nettoyé ;
-- la mise à jour des données du dépôt.
-
-Une variante Airflow/Docker est également disponible :
-
-```
-dags/
-docker-compose.yaml
-```
-
-Elle est documentée dans :
-
-[`ARCHITECTURE.md`](ARCHITECTURE.md)
+Une variante Airflow/Docker est également disponible (`dags/`,
+`docker-compose.yaml`), documentée dans [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 
 # Documentation complémentaire
 
-Pour les informations concernant :
-
-- l'architecture globale ;
-- les choix techniques ;
-- l'organisation du pipeline ;
-- les décisions de conception ;
-
-consulter :
-
-[`ARCHITECTURE.md`](ARCHITECTURE.md)
+Stack technique, structure du projet, choix d'architecture et décisions de
+conception : voir [`ARCHITECTURE.md`](ARCHITECTURE.md).
