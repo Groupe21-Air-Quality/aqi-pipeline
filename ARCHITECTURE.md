@@ -1,68 +1,53 @@
-# ARCHITECTURE.md
+# ARCHITECTURE.md — Pipeline AQI
 
 ## Vue d'ensemble
 
 ```
-OpenWeatherMap Air Pollution API (5 villes)
-        │  collecte horaire + backfill (3-12 mois)
+OpenWeather Air Pollution API (5 villes)
+        │  collecte horaire + backfill (90 jours)
         ▼
-Airflow (Docker Compose, LocalExecutor, sur une machine du groupe)
+GitHub Actions (orchestrateur)
         ▼
-STOCKAGE (dans le repo Git, poussé par le DAG à chaque run)
+STOCKAGE (dans le repo Git)
   data/raw/    fichiers JSON bruts, jamais modifiés
-  data/clean/  1 fichier CSV unique, reconstruit à chaque run depuis raw/
+  data/clean/  air_quality_clean.csv (reconstruit à chaque run)
         ▼
-PostgreSQL (Supabase/Neon) — Data Warehouse en étoile
-  dim_city + dim_time + fact_air_quality
+DATA WAREHOUSE — Neon (PostgreSQL)
+  Schéma en étoile : fact_air_quality + dim_city + dim_time
 ```
 
-> **Deux variantes du même code sont fournies dans ce repo :**
-> - `.github/workflows/` : orchestrateur GitHub Actions (cloud, aucune machine à maintenir)
-> - `docker-compose.yaml` + `dags/` : orchestrateur Airflow en local via Docker
->
-> Les deux réutilisent exactement les mêmes scripts `src/*.py` — seule la
-> couche d'orchestration change. **Un seul des deux doit être actif en
-> production** pour éviter les doubles écritures dans le warehouse (désactiver
-> le déclenchement automatique de l'autre : mettre le workflow GitHub Actions
-> en pause, ou ne pas lancer le scheduler Airflow, selon celui que vous gardez).
+## Stack choisie
 
-## Choix techniques et justifications
-
-| Composant | Choix | Justification |
+| Composant | Choix | Justification (une phrase par choix — À COMPLÉTER PAR L'ÉQUIPE) |
 |---|---|---|
-| **API AQI** | OpenWeatherMap Air Pollution (current + history) | Gratuite, couvre les 5 villes, fournit un historique jusqu'à plusieurs années, et livre à la fois un indice AQI global et le détail par polluant (CO, NO, NO2, O3, SO2, PM2.5, PM10, NH3). |
-| **Orchestrateur** | Airflow (Docker Compose, LocalExecutor) sur une machine du groupe | Choix pédagogique aligné sur l'outil vu en cours (DAGs, scheduler, UI de suivi des runs) ; entièrement conteneurisé donc reproductible par n'importe quel membre (`docker compose up`) ; `docker-compose.yaml` et les DAGs sont versionnés dans le repo. **Contrepartie assumée** : contrairement à un orchestrateur cloud, la machine hôte doit rester allumée, connectée et sans veille 24h/24 pour respecter la contrainte "le pipeline continue à tourner après le rendu" — voir mitigations ci-dessous. |
-| **Stockage raw/clean** | Fichiers dans le repo Git (`data/raw/`, `data/clean/`) | Simplicité, gratuité, traçabilité par les commits automatiques du bot ; chaque run du pipeline laisse une trace vérifiable dans l'historique Git. |
-| **Data Warehouse** | PostgreSQL hébergé (Supabase ou Neon, offre gratuite) | Accessible à distance en continu (contrairement à SQLite), ce qui permet à IA1 de s'y connecter directement au fil de l'eau ; supporte nativement les clés étrangères et contraintes d'unicité nécessaires au schéma en étoile. |
-| **Modélisation** | Schéma en étoile (1 table de faits + 2 dimensions) | Les deux axes d'analyse demandés (temps, ville) sont indépendants et non hiérarchiques entre eux : pas besoin de flocon. Respecte les règles du cours : aucune mesure (AQI, polluants) dans les dimensions, aucune colonne descriptive (nom de ville, jour de semaine...) dans la table de faits — uniquement des clés étrangères et des mesures numériques. |
-| **Secret de la clé API** | Secret GitHub Actions (`secrets.OWM_API_KEY`) + variable d'environnement | Jamais écrite en dur dans le code ni commitée ; injectée uniquement au moment de l'exécution du workflow. |
+| **Source de données** | OpenWeather Air Pollution API | gratuite, fiable, fournit AQI + 8 polluants (CO, NO, NO2, O3, SO2, PM2.5, PM10, NH3) pour n'importe quelle coordonnée GPS |
+| **Orchestrateur** | GitHub Actions | Nous sommes partis d'abord sur **Apache Airflow en local (Docker)**, mais aucun membre du groupe ne pouvait garantir de laisser un ordinateur allumé 24h/24 jusqu'après le rendu. Nous avons migré vers **GitHub Actions** (`schedule: cron`) pour une exécution planifiée hébergée par GitHub, indépendante de toute machine physique, avec un historique d'exécution directement consultable dans l'onglet *Actions* du repo.  |
+| **Stockage raw/clean** | Fichiers dans le repo Git (`data/raw/`, `data/clean/`) | : simple, versionné, accessible publiquement via GitHub sans infrastructure supplémentaire à maintenir  |
+| **Data Warehouse** | Neon (PostgreSQL serverless) |  gratuit, compatible SQL standard, accessible à distance (utile pour Power BI et pour IA1), pas de serveur à gérer |
+| **Modélisation** | Schéma en étoile |  un seul niveau de dimensions (ville, temps) autour de la table de faits, suffisant vu le volume de données et plus simple à interroger qu'un flocon|
 
-## Flux d'exécution (chaque run horaire)
+## Détail de l'orchestration (GitHub Actions)
 
-1. `collect.py` : appelle l'API pour les 5 villes → écrit 5 fichiers JSON dans `data/raw/<ville>/`
-2. `build_clean.py` : relit **tous** les fichiers de `data/raw/` (récursivement) → reconstruit `data/clean/air_quality_clean.csv` en entier, dédoublonné et trié
-3. `validate_clean.py` : vérifie le contrat de données (colonnes, doublons, tri, plages de valeurs) ; le workflow s'arrête si la validation échoue
-4. `load_warehouse.py` : vide et recharge entièrement le warehouse PostgreSQL depuis `clean/`
-5. Le bot commit et push les nouveaux fichiers `data/raw/` et `data/clean/` dans le repo
+Deux workflows dans `.github/workflows/` :
 
-Le backfill (`backfill.py`) suit le même principe mais interroge l'endpoint `history` de l'API, découpé en tranches de 30 jours, et est déclenché manuellement une seule fois (ou à la demande) via le DAG `aqi_backfill` (Airflow) ou `workflow_dispatch` (GitHub Actions).
+- **`aqi_hourly.yml`** — déclenché automatiquement toutes les heures (`cron: '0 * * * *'`). Enchaîne : collecte → reconstruction `clean/` → validation → chargement warehouse → commit/push des données.
+- **`aqi_backfill.yml`** — déclenchement manuel (`workflow_dispatch`) avec un paramètre `days`, utilisé pour charger l'historique (90 jours au lancement du projet).
 
-## Risque "machine locale" et mitigations (variante Airflow/Docker)
+Les deux réutilisent exactement les mêmes scripts Python (`src/collect.py`, `src/build_clean.py`, `src/validate_clean.py`, `src/load_warehouse.py`), qu'ils aient été exécutés par Airflow (phase initiale de test) ou par GitHub Actions (version finale en production) — un seul code de transformation, comme demandé par le sujet.
 
-Faire tourner l'orchestrateur sur l'ordinateur d'un membre du groupe expose à un
-risque réel : mise en veille, redémarrage, coupure de courant/réseau ou
-extinction après la soutenance arrêtent la collecte, et un warehouse qui ne
-répond plus vaut zéro selon les règles de l'exam. Mitigations retenues :
+## Secrets
 
-- **Le warehouse reste hébergé à distance** (Supabase/Neon) : il répond en
-  continu même si l'ordinateur du groupe est éteint. Seule la *collecte de
-  nouvelles données* s'arrête, pas l'accès aux données déjà chargées.
-- **`data/raw/` et `data/clean/` sont poussés sur GitHub à chaque run** : même
-  si la machine s'éteint après le rendu, l'historique de commits prouve que le
-  pipeline a bien tourné sur plusieurs jours à des heures automatiques.
-- Réglages recommandés sur la machine hôte : désactiver la mise en veille
-  automatique, brancher sur secteur, préférer une machine dédiée (mini-PC,
-  ancien PC, Raspberry Pi) plutôt qu'un laptop utilisé quotidiennement.
-- En cas de doute sur la disponibilité de la machine le jour du rendu, le
-  workflow GitHub Actions fourni en parallèle peut servir de filet de
-  sécurité (il suffit de le réactiver).
+Les identifiants suivants sont stockés en secrets GitHub (Settings → Secrets and variables → Actions), jamais dans le code :
+- `OWM_API_KEY` — clé API OpenWeather
+- `DATABASE_URL` — chaîne de connexion Neon
+
+Le push automatique des données utilise le token intégré `GITHUB_TOKEN`, avec permission d'écriture activée sur le repo.
+
+## Historique de la démarche (pour le rapport de projet)
+
+1. Mise en place initiale sur **Apache Airflow** (Docker + Docker Compose, en local)
+2. Constat que le pipeline devait tourner en continu même après le rendu, incompatible avec une machine locale
+3. Migration vers **GitHub Actions**, avec réutilisation intégrale des scripts déjà écrits pour Airflow
+4. Airflow reste disponible dans le repo pour la démonstration/historique, mais n'est plus l'orchestrateur en production
+
+
