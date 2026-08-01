@@ -22,7 +22,7 @@ Pour mener à bien le déploiement continu du pipeline de données sur un rythme
 * **harena (tsutoru) :** Initialisation de la structure du projet, nettoyage et refactorisation du code (`clean the quality of the code`), sécurisation du dépôt (exclusion des fichiers `.env` dans `.gitignore`) et première mise en place du DAG Airflow.
 * **nomena / nomena-yves :** Implémentation du chargement dynamique des variables d'environnement (`load_dotenv`), exécution et automatisation du **backfill initial de 90 jours** sur les 5 villes, gestion de la reconstruction de la zone `clean/` et configuration des workflows GitHub Actions / Airflow 24h/24.
 * **ikkikana :** Rédaction, structuration et finalisation de la documentation technique globale du projet dans le fichier `README.md` (spécifications du contrat de données et détails des villes).
-* **CHARAFFAINE ISSA BEN SAID :** Rédaction et structuration du rapport de projet (`RAPPORT.md`), analyse de la modélisation du Data Warehouse, contrôle de la conformité du pipeline et préparation des livrables analytiques pour le cours IA1.
+* **CHARAFFAINE ISSA BEN SAID (Vylhiz) :** Rédaction et structuration du rapport de projet (`RAPPORT.md`), analyse de la modélisation du Data Warehouse, contrôle de la conformité du pipeline et préparation des livrables analytiques pour le cours IA1.
 
 ---
 
