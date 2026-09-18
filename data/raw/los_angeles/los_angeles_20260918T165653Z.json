@@ -1,0 +1,32 @@
+{
+  "city": "Los Angeles",
+  "country": "USA",
+  "lat": 34.0522,
+  "lon": -118.2437,
+  "collected_at_utc": "20260918T165653Z",
+  "source": "openweathermap_air_pollution_current",
+  "raw_response": {
+    "coord": {
+      "lon": -118.243,
+      "lat": 34.0549
+    },
+    "list": [
+      {
+        "main": {
+          "aqi": 2
+        },
+        "components": {
+          "co": 144.8,
+          "no": 0.04,
+          "no2": 0.43,
+          "o3": 86.97,
+          "so2": 0.52,
+          "pm2_5": 4,
+          "pm10": 11.9,
+          "nh3": 0
+        },
+        "dt": 1789750033
+      }
+    ]
+  }
+}
