@@ -1,0 +1,32 @@
+{
+  "city": "New Delhi",
+  "country": "India",
+  "lat": 28.6139,
+  "lon": 77.209,
+  "collected_at_utc": "20261007T171536Z",
+  "source": "openweathermap_air_pollution_current",
+  "raw_response": {
+    "coord": {
+      "lon": 77.209,
+      "lat": 28.6139
+    },
+    "list": [
+      {
+        "main": {
+          "aqi": 3
+        },
+        "components": {
+          "co": 440.82,
+          "no": 0,
+          "no2": 22.31,
+          "o3": 41.41,
+          "so2": 3.5,
+          "pm2_5": 29.38,
+          "pm10": 53.31,
+          "nh3": 7.14
+        },
+        "dt": 1791392962
+      }
+    ]
+  }
+}
